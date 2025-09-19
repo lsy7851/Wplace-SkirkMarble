@@ -3268,7 +3268,7 @@ function buildOverlayMain() {
     .addDiv({'id': 'bm-contain-header'})
       .addDiv({'id': 'bm-bar-drag'}).buildElement()
       .addDiv({'id': 'bm-title-container'})
-        .addImg({'alt': 'Blue Marble Icon - Click to minimize/maximize', 'src': 'https://raw.githubusercontent.com/Seris0/Wplace-BlueMarble/main/dist/assets/Favicon.png', 'style': 'cursor: pointer; width: 42px; height: 42px;'}, 
+        .addImg({'alt': 'Blue Marble Icon - Click to minimize/maximize', 'src': 'https://raw.githubusercontent.com/Seris0/Wplace-SkirkMarble/main/dist/assets/Favicon.png', 'style': 'cursor: pointer; width: 42px; height: 42px;'}, 
           (instance, img) => {
           /** Click event handler for overlay minimize/maximize functionality.
            * 
