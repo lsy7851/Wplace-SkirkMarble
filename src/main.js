@@ -2420,7 +2420,20 @@ function showImportDialog(instance) {
     font-size: 48px;
     margin-bottom: 16px;
     color: #64748b;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   `;
+  
+  // Style the SVG inside the dropIcon
+  const svg = dropIcon.querySelector('svg');
+  if (svg) {
+    svg.style.cssText = `
+      width: 48px;
+      height: 48px;
+      margin: 0 auto;
+    `;
+  }
 
   const dropText = document.createElement('p');
   dropText.innerHTML = 'Drag & drop your JSON file here<br>or <strong>click to browse</strong>';
@@ -3858,6 +3871,12 @@ function buildOverlayMain() {
           .addButton({'id': 'bm-button-import', 'className': 'bm-help', innerHTML: icons.uploadIcon, 'title': 'Import Templates'}, (instance, button) => {
             button.addEventListener('click', () => {
               showImportDialog(instance);
+            });
+          }).buildElement()
+          // Settings button (direct access)
+          .addButton({'id': 'bm-button-settings-direct', 'className': 'bm-help', innerHTML: icons.settingsIcon, 'title': 'Settings (Quick Access)'}, (instance, button) => {
+            button.addEventListener('click', () => {
+              buildCrosshairSettingsOverlay();
             });
           }).buildElement()
         .buildElement()
@@ -8711,9 +8730,9 @@ setTimeout(() => {
 function buildCrosshairSettingsOverlay() {
   try {
     // Ensure Slate theme CSS variables are available globally
-    if (!document.getElementById('bmcf-styles')) {
+    if (!document.getElementById('bm-settings-styles')) {
       const crosshairStyles = document.createElement('style');
-      crosshairStyles.id = 'bmcf-styles';
+      crosshairStyles.id = 'bm-settings-styles';
       crosshairStyles.textContent = `
         :root { 
           --slate-50: #f8fafc; --slate-100: #f1f5f9; --slate-200: #e2e8f0; --slate-300: #cbd5e1; 
