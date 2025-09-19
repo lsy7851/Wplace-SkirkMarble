@@ -10656,7 +10656,7 @@ function createSearchWindow() {
 <div class="drag-handle"></div>
 <div class="hdr">
   <h3>
-    <img class="skirk-icon" src="https://raw.githubusercontent.com/Seris0/Wplace-BlueMarble/main/dist/assets/Favicon.png" alt="Blue Marble" style="width:42px;height:42px;">
+    <img class="skirk-icon" src="https://raw.githubusercontent.com/Seris0/Wplace-SkirkMarble/main/dist/assets/Favicon.png" alt="Blue Marble" style="width:42px;height:42px;">
     Location Search
   </h3>
   <div class="actions">
