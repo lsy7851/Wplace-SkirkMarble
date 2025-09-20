@@ -231,6 +231,17 @@ export function toggleSmartTileCache() {
   return smartTileCacheEnabled;
 }
 
+/** Invalidates the tile cache when visual settings change
+ * This ensures tiles are reprocessed when Map View or Enhanced modes change
+ * @since 1.0.0
+ */
+export function invalidateCacheForSettingsChange() {
+  if (smartTileCacheEnabled && smartTileCache.size > 0) {
+    debugLog('[Tile Cache] Invalidating cache due to visual settings change');
+    clearSmartTileCache();
+  }
+}
+
 /** Initializes the tile refresh pause system
  * @param {Object} templateManager - The template manager instance
  * @since 1.0.0

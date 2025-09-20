@@ -5,6 +5,20 @@
 
 import { debugLog } from './utils.js';
 
+/** Helper function to invalidate tile cache when settings change
+ * @since 1.0.0
+ */
+function invalidateCache() {
+  // Dynamic import to avoid circular dependencies
+  import('./tileManager.js').then(tileManager => {
+    if (tileManager.invalidateCacheForSettingsChange) {
+      tileManager.invalidateCacheForSettingsChange();
+    }
+  }).catch(() => {
+    // Ignore errors if tileManager is not available yet
+  });
+}
+
 /** Gets the saved crosshair color from storage
  * @returns {Object} The crosshair color configuration
  * @since 1.0.0 
@@ -62,6 +76,7 @@ export function saveCrosshairColor(colorConfig) {
     localStorage.setItem('bmCrosshairColor', colorString);
     
     debugLog('Crosshair color saved:', colorConfig);
+    invalidateCache();
   } catch (error) {
     console.error('Failed to save crosshair color:', error);
   }
@@ -114,6 +129,7 @@ export function saveBorderEnabled(enabled) {
     // Also save to localStorage as backup
     localStorage.setItem('bmCrosshairBorder', enabledString);
     
+    invalidateCache();
   } catch (error) {
     console.error('Failed to save border setting:', error);
   }
@@ -166,6 +182,7 @@ export function saveEnhancedSizeEnabled(enabled) {
     // Also save to localStorage as backup
     localStorage.setItem('bmCrosshairEnhancedSize', enabledString);
     
+    invalidateCache();
   } catch (error) {
     console.error('Failed to save enhanced size setting:', error);
   }
@@ -218,6 +235,7 @@ export function saveMiniTrackerEnabled(enabled) {
     // Also save to localStorage as backup
     localStorage.setItem('bmMiniTrackerEnabled', enabledString);
     
+    invalidateCache();
   } catch (error) {
     console.error('Failed to save mini tracker setting:', error);
   }
@@ -270,6 +288,7 @@ export function saveCollapseMinEnabled(enabled) {
     // Also save to localStorage as backup
     localStorage.setItem('bmCollapseMinEnabled', enabledString);
     
+    invalidateCache();
   } catch (error) {
     console.error('Failed to save collapse min setting:', error);
   }
@@ -299,6 +318,7 @@ export function saveMobileMode(enabled) {
   try {
     localStorage.setItem('bmMobileMode', JSON.stringify(enabled));
     debugLog('Mobile mode setting saved:', enabled);
+    invalidateCache();
   } catch (error) {
     console.error('Failed to save mobile mode setting:', error);
   }
@@ -354,6 +374,7 @@ export function saveTileRefreshPaused(paused) {
     localStorage.setItem('bmTileRefreshPaused', pausedString);
     
     debugLog('⏸️ Tile refresh pause setting saved:', paused);
+    invalidateCache();
   } catch (error) {
     console.error('Failed to save tile refresh pause setting:', error);
   }
@@ -413,6 +434,7 @@ export function saveSmartTileCacheEnabled(enabled) {
     localStorage.setItem('bmSmartTileCache', enabledString);
     
     debugLog('🧠 Smart tile cache setting saved:', enabled);
+    invalidateCache();
   } catch (error) {
     console.error('Failed to save smart tile cache setting:', error);
   }
@@ -468,6 +490,7 @@ export function saveSmartDetectionEnabled(enabled) {
     localStorage.setItem('bmSmartDetectionEnabled', enabledString);
     
     debugLog('Smart detection setting saved:', enabled);
+    invalidateCache();
   } catch (error) {
     console.error('Failed to save smart detection setting:', error);
   }
@@ -523,6 +546,7 @@ export function saveNavigationMethod(method) {
     localStorage.setItem('bmNavigationMethod', methodString);
     
     debugLog('Navigation method setting saved:', method);
+    invalidateCache();
   } catch (error) {
     console.error('Failed to save navigation method setting:', error);
   }
@@ -573,6 +597,7 @@ export function saveDragModeEnabled(enabled) {
     localStorage.setItem('bmDragMode', enabledString);
     
     debugLog('Drag mode setting saved:', enabled);
+    invalidateCache();
   } catch (error) {
     console.error('Failed to save drag mode setting:', error);
   }

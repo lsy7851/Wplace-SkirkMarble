@@ -4958,10 +4958,7 @@ function buildColorFilterOverlay() {
       await templateManager.setEnhanceWrongColors(enabled);
       overlayMain.handleDisplayStatus(`Wrong colors crosshair ${enabled ? 'enabled' : 'disabled'}!`);
       
-      // Force template redraw to apply enhanced mode changes
-      if (window.forceTemplateRedraw) {
-        window.forceTemplateRedraw();
-      }
+      invalidateTemplateCache();
     });
 
     enhanceWrongContainer.appendChild(enhanceWrongCheckbox);
@@ -5442,6 +5439,8 @@ function buildColorFilterOverlay() {
           isSyncing = false;
         }
         
+        invalidateTemplateCache();
+        
         // Refresh template display in real-time
         refreshTemplateDisplay().catch(error => {
           console.error('Error refreshing template:', error);
@@ -5456,6 +5455,8 @@ function buildColorFilterOverlay() {
         } else {
           currentTemplate.disableColorEnhanced(rgb);
         }
+        
+        invalidateTemplateCache();
         
         // Refresh template display in real-time
         refreshTemplateDisplay().catch(error => {
@@ -5684,6 +5685,8 @@ function buildColorFilterOverlay() {
           enhancedCheckbox.checked = false;
         }
         
+        invalidateTemplateCache();
+        
         refreshTemplateDisplay().catch(error => {
           console.error('Error refreshing enhanced mode:', error);
         });
@@ -5860,6 +5863,8 @@ function buildColorFilterOverlay() {
           isSyncing = false;
         }
         
+        invalidateTemplateCache();
+        
         refreshTemplateDisplay().catch(error => {
           console.error('Error refreshing template:', error);
         });
@@ -5975,6 +5980,9 @@ function buildColorFilterOverlay() {
       colorPalette.forEach((colorInfo) => {
         currentTemplate.enableColor(colorInfo.rgb);
       });
+      
+      invalidateTemplateCache();
+      
       colorFilterOverlay.remove();
       overlayMain.handleDisplayStatus('Enabling all colors...');
       
@@ -5991,6 +5999,9 @@ function buildColorFilterOverlay() {
       colorPalette.forEach((colorInfo) => {
         currentTemplate.disableColor(colorInfo.rgb);
       });
+      
+      invalidateTemplateCache();
+      
       colorFilterOverlay.remove();
       overlayMain.handleDisplayStatus('Disabling all colors...');
       
@@ -6019,6 +6030,8 @@ function buildColorFilterOverlay() {
         const tmpl = templateManager.templatesArray?.[0];
         if (tmpl && tmpl.enhancedColors && tmpl.enhancedColors.size > 0) {
           tmpl.enhancedColors.clear();
+          
+          invalidateTemplateCache();
           
           // Success feedback
           disableAllEnhancedButton.style.background = '#28a745'; // Green
@@ -6501,6 +6514,7 @@ function buildColorFilterOverlay() {
           }
         }
       });
+      invalidateTemplateCache();
     });
     
     enableAllBtn.addEventListener('click', () => {
@@ -6520,6 +6534,7 @@ function buildColorFilterOverlay() {
           }
         }
       });
+      invalidateTemplateCache();
     });
     
     compactBulkContainer.appendChild(disableAllBtn);
@@ -7011,6 +7026,8 @@ function buildColorFilterOverlay() {
           overlayMain.handleDisplayStatus(`Enhanced mode disabled: ${color.name}`);
         }
         
+        invalidateTemplateCache();
+        
         // Sync with main overlay checkboxes
         const gridItem = colorViewContainer.querySelector(`[data-color-rgb="${colorKey}"]`);
         const listItem = colorViewContainer.querySelector(`[data-color-rgb="${colorKey}"].bmcf-list-item`);
@@ -7024,6 +7041,7 @@ function buildColorFilterOverlay() {
           const listCheckbox = listItem.querySelector('input[type="checkbox"]');
           if (listCheckbox) listCheckbox.checked = enhancedCheckbox.checked;
         }
+        
         
         // Refresh template display to save changes persistently
         refreshTemplateDisplay().catch(error => {
@@ -7139,6 +7157,8 @@ function buildColorFilterOverlay() {
           
           overlayMain.handleDisplayStatus(`Color disabled: ${color.name}`);
         }
+
+        invalidateTemplateCache();
 
         // Update progress display after the toggle
         setTimeout(() => {
@@ -7704,6 +7724,8 @@ function handleEKeyColorClick(event) {
     currentTemplate.enableColorEnhanced(rgbColor);
     debugLog(`🎹 [X-Mode] Enhanced mode enabled for RGB(${rgbColor.join(', ')})`);
     
+    invalidateTemplateCache();
+    
     // Visual feedback
     const colorName = colorButton.getAttribute('aria-label') || colorId;
     if (typeof overlayMain !== 'undefined' && overlayMain.handleDisplayStatus) {
@@ -7739,6 +7761,17 @@ function handleEKeyColorClick(event) {
 window.refreshColorFilterOverlay = refreshColorFilterOverlay;
 window.forceTemplateRedraw = forceTemplateRedraw;
 
+// Helper function to invalidate cache when templates change
+function invalidateTemplateCache() {
+  import('./tileManager.js').then(tileManager => {
+    if (tileManager.invalidateCacheForSettingsChange) {
+      tileManager.invalidateCacheForSettingsChange();
+    }
+  }).catch(() => {
+    // Ignore errors if tileManager is not available yet
+  });
+}
+
 // ====== ERROR MAP MODE (LURK INTEGRATION) ======
 
 /** Gets the error map enabled state from storage */
@@ -7769,6 +7802,10 @@ function saveErrorMapEnabled(enabled) {
     }
     localStorage.setItem('bmErrorMap', enabledString);
     debugLog('Error map setting saved:', enabled);
+    // Invalidate cache since visual mode changed
+    import('./tileManager.js').then(tileManager => {
+      tileManager.invalidateCacheForSettingsChange();
+    });
   } catch (error) {
     console.error('❌ Failed to save error map setting:', error);
   }
@@ -7779,6 +7816,7 @@ function toggleErrorMapMode() {
   const currentState = getErrorMapEnabled();
   const newState = !currentState;
   saveErrorMapEnabled(newState);
+  
   
   // Apply to template manager
   if (templateManager) {
@@ -7940,6 +7978,10 @@ function saveCrosshairColor(colorConfig) {
     localStorage.setItem('bmCrosshairColor', colorString);
     
     debugLog('Crosshair color saved:', colorConfig);
+    // Invalidate cache for setting change
+    import('./tileManager.js').then(tileManager => {
+      tileManager.invalidateCacheForSettingsChange();
+    });
   } catch (error) {
     console.error('Failed to save crosshair color:', error);
   }
@@ -10316,6 +10358,7 @@ function buildCrosshairSettingsOverlay() {
         toggleSmartTileCache();
         updateCacheStatsDisplay(); // Update the stats display
       }
+      
       
       // Apply mobile mode to existing Color Filter overlay dynamically
       applyMobileModeToColorFilter(tempMobileMode);
