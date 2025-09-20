@@ -6,6 +6,7 @@
 
 import TemplateManager from "./templateManager.js";
 import { escapeHTML, numberToEncoded, serverTPtoDisplayTP, debugLog } from "./utils.js";
+import { notifyCanvasChange } from "./tileManager.js";
 
 export default class ApiManager {
 
@@ -35,6 +36,13 @@ export default class ApiManager {
 
       const data = event.data; // The data of the message
       const dataJSON = data['jsonData']; // The JSON response, if any
+
+      // Handle canvas change notifications
+      if (data['source'] === 'blue-marble-canvas-change') {
+        debugLog('[Canvas Change] Detected pixel placement request:', data['method'], data['endpoint']);
+        notifyCanvasChange();
+        return;
+      }
 
       // Kills itself if the message was not intended for Blue Marble
       if (!(data && data['source'] === 'blue-marble')) {return;}

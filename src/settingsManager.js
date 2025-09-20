@@ -359,6 +359,65 @@ export function saveTileRefreshPaused(paused) {
   }
 }
 
+/** Gets the smart tile cache setting from storage
+ * @returns {boolean} Whether smart tile caching is enabled
+ * @since 1.0.0
+ */
+export function getSmartTileCacheEnabled() {
+  try {
+    let cacheEnabled = null;
+    
+    // Try TamperMonkey storage first
+    if (typeof GM_getValue !== 'undefined') {
+      const saved = GM_getValue('bmSmartTileCache', null);
+      if (saved !== null) {
+        cacheEnabled = JSON.parse(saved);
+      }
+    }
+    
+    // Fallback to localStorage
+    if (cacheEnabled === null) {
+      const saved = localStorage.getItem('bmSmartTileCache');
+      if (saved !== null) {
+        cacheEnabled = JSON.parse(saved);
+      }
+    }
+    
+    if (cacheEnabled !== null) {
+      debugLog('🧠 Smart tile cache setting loaded:', cacheEnabled);
+      return cacheEnabled;
+    }
+  } catch (error) {
+    console.warn('Failed to load smart tile cache setting:', error);
+  }
+  
+  // Default to enabled for better performance
+  debugLog('🧠 Using default smart tile cache setting: true');
+  return true;
+}
+
+/** Saves the smart tile cache setting to storage
+ * @param {boolean} enabled - Whether smart tile caching should be enabled
+ * @since 1.0.0
+ */
+export function saveSmartTileCacheEnabled(enabled) {
+  try {
+    const enabledString = JSON.stringify(enabled);
+    
+    // Save to TamperMonkey storage
+    if (typeof GM_setValue !== 'undefined') {
+      GM_setValue('bmSmartTileCache', enabledString);
+    }
+    
+    // Also save to localStorage as backup
+    localStorage.setItem('bmSmartTileCache', enabledString);
+    
+    debugLog('🧠 Smart tile cache setting saved:', enabled);
+  } catch (error) {
+    console.error('Failed to save smart tile cache setting:', error);
+  }
+}
+
 /** Gets the smart template detection setting from storage
  * @returns {boolean} Whether smart detection is enabled
  * @since 1.0.0

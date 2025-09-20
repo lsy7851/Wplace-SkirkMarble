@@ -14,7 +14,7 @@ if (typeof window !== 'undefined') {
   window.getDebugLoggingEnabled = getDebugLoggingEnabled;
 }
 import * as icons from './icons.js';
-import { initializeTileRefreshPause, toggleTileRefreshPause, isTileRefreshPaused, getCachedTileCount } from './tileManager.js';
+import { initializeTileRefreshPause, toggleTileRefreshPause, isTileRefreshPaused, getCachedTileCount, getSmartCacheStats, toggleSmartTileCache, notifyCanvasChange } from './tileManager.js';
 import * as Settings from './settingsManager.js';
 import { getDragModeEnabled, saveDragModeEnabled } from './settingsManager.js';
 
@@ -114,6 +114,17 @@ inject(() => {
 
     // Retrieves the endpoint name. Unknown endpoint = "ignore"
     const endpointName = ((args[0] instanceof Request) ? args[0]?.url : args[0]) || 'ignore';
+
+    // Check for pixel placement requests (PUT/POST methods that might indicate canvas changes)
+    const method = (args[1]?.method || 'GET').toUpperCase();
+    if (method === 'PUT' || method === 'POST') {
+      // Notify that canvas might have changed (pixel placement)
+      window.postMessage({
+        source: 'blue-marble-canvas-change',
+        method: method,
+        endpoint: endpointName
+      }, '*');
+    }
 
     // Check Content-Type to only process JSON
     const contentType = cloned.headers.get('content-type') || '';
@@ -10287,7 +10298,7 @@ function buildCrosshairSettingsOverlay() {
     
     try {
       // Save all settings
-      debugLog('Applying crosshair settings:', { color: tempColor, borders: tempBorderEnabled, miniTracker: tempMiniTrackerEnabled, collapse: tempCollapseMinEnabled, mobile: tempMobileMode, showLeftOnColor: tempShowLeftOnColor, navigation: tempNavigationMethod, debug: tempDebugEnabled });
+      debugLog('Applying crosshair settings:', { color: tempColor, borders: tempBorderEnabled, miniTracker: tempMiniTrackerEnabled, collapse: tempCollapseMinEnabled, mobile: tempMobileMode, showLeftOnColor: tempShowLeftOnColor, navigation: tempNavigationMethod, debug: tempDebugEnabled, smartCache: tempCacheEnabled });
       
       saveCrosshairColor(tempColor);
       saveBorderEnabled(tempBorderEnabled);
@@ -10299,6 +10310,12 @@ function buildCrosshairSettingsOverlay() {
       saveShowLeftOnColorEnabled(tempShowLeftOnColor);
       Settings.saveNavigationMethod(tempNavigationMethod);
       saveDebugLoggingEnabled(tempDebugEnabled);
+      
+      // Apply smart tile cache setting
+      if (getSmartCacheStats().enabled !== tempCacheEnabled) {
+        toggleSmartTileCache();
+        updateCacheStatsDisplay(); // Update the stats display
+      }
       
       // Apply mobile mode to existing Color Filter overlay dynamically
       applyMobileModeToColorFilter(tempMobileMode);
@@ -10607,6 +10624,177 @@ function buildCrosshairSettingsOverlay() {
   navigationSection.appendChild(navigationToggle);
   contentContainer.appendChild(navigationSection);
   contentContainer.appendChild(dragModeSection);
+
+  // Smart Tile Cache section
+  const cacheSection = document.createElement('div');
+  cacheSection.style.cssText = `
+    background: linear-gradient(135deg, var(--slate-800), var(--slate-750));
+    border: 1px solid var(--slate-700);
+    border-radius: ${sectionBorderRadius};
+    padding: ${sectionPadding};
+    margin-bottom: ${sectionMargin};
+    position: relative;
+    z-index: 1;
+  `;
+
+  const cacheLabel = document.createElement('h3');
+  cacheLabel.textContent = 'Tile Cache';
+  cacheLabel.style.cssText = `
+    margin: 0 0 8px 0;
+    color: var(--slate-100);
+    font-size: 1em;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  `;
+
+  const cacheDescription = document.createElement('p');
+  cacheDescription.textContent = 'Cache processed tiles to reduce lag when revisiting areas. Automatically detects canvas changes.';
+  cacheDescription.style.cssText = `
+    margin: 0 0 12px 0;
+    color: var(--slate-400);
+    font-size: 0.85em;
+    line-height: 1.4;
+  `;
+
+  // Get current cache stats
+  const cacheStats = getSmartCacheStats();
+  let tempCacheEnabled = cacheStats.enabled;
+
+  // Cache statistics display
+  const cacheStatsDisplay = document.createElement('div');
+  cacheStatsDisplay.style.cssText = `
+    background: var(--slate-900);
+    border: 1px solid var(--slate-600);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8em;
+    color: var(--slate-300);
+    line-height: 1.3;
+  `;
+  
+  function updateCacheStatsDisplay() {
+    const stats = getSmartCacheStats();
+    cacheStatsDisplay.innerHTML = `
+      <div>Status: <span style="color: ${stats.enabled ? 'var(--emerald-400)' : 'var(--red-400)'};">${stats.enabled ? 'ENABLED' : 'DISABLED'}</span></div>
+      <div>Cached Tiles: <span style="color: var(--blue-400);">${stats.size}</span>/${stats.maxSize}</div>
+    `;
+  }
+  
+  updateCacheStatsDisplay();
+
+  const cacheToggle = document.createElement('div');
+  cacheToggle.style.cssText = `
+    display: flex;
+    gap: 8px;
+    padding: 4px;
+    background: var(--slate-900);
+    border-radius: 8px;
+    border: 1px solid var(--slate-600);
+  `;
+
+  const cacheOffButton = document.createElement('button');
+  cacheOffButton.textContent = 'OFF';
+  cacheOffButton.style.cssText = `
+    flex: 1 1 0%;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 600;
+    transition: 0.2s;
+    ${!tempCacheEnabled ? 
+      'background: linear-gradient(135deg, var(--blue-500), var(--blue-600)); color: white;' : 
+      'background: var(--slate-700); color: var(--slate-300);'}
+  `;
+
+  const cacheOnButton = document.createElement('button');
+  cacheOnButton.textContent = 'ON';
+  cacheOnButton.style.cssText = `
+    flex: 1 1 0%;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 600;
+    transition: 0.2s;
+    ${tempCacheEnabled ? 
+      'background: linear-gradient(135deg, var(--blue-500), var(--blue-600)); color: white;' : 
+      'background: var(--slate-700); color: var(--slate-300);'}
+  `;
+
+  cacheOffButton.onclick = () => {
+    if (tempCacheEnabled) {
+      tempCacheEnabled = false;
+      cacheOffButton.style.cssText = `
+        flex: 1 1 0%;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9em;
+        font-weight: 600;
+        transition: 0.2s;
+        background: linear-gradient(135deg, var(--blue-500), var(--blue-600));
+        color: white;
+      `;
+      cacheOnButton.style.cssText = `
+        flex: 1 1 0%;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9em;
+        font-weight: 600;
+        transition: 0.2s;
+        background: var(--slate-700);
+        color: var(--slate-300);
+      `;
+    }
+  };
+
+  cacheOnButton.onclick = () => {
+    if (!tempCacheEnabled) {
+      tempCacheEnabled = true;
+      cacheOnButton.style.cssText = `
+        flex: 1 1 0%;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9em;
+        font-weight: 600;
+        transition: 0.2s;
+        background: linear-gradient(135deg, var(--blue-500), var(--blue-600));
+        color: white;
+      `;
+      cacheOffButton.style.cssText = `
+        flex: 1 1 0%;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9em;
+        font-weight: 600;
+        transition: 0.2s;
+        background: var(--slate-700);
+        color: var(--slate-300);
+      `;
+    }
+  };
+
+  cacheToggle.appendChild(cacheOffButton);
+  cacheToggle.appendChild(cacheOnButton);
+
+  cacheSection.appendChild(cacheLabel);
+  cacheSection.appendChild(cacheDescription);
+  cacheSection.appendChild(cacheStatsDisplay);
+  cacheSection.appendChild(cacheToggle);
+
+  contentContainer.appendChild(cacheSection);
 
   // Debug logging section
   const debugSection = document.createElement('div');
