@@ -16,6 +16,7 @@ if (typeof window !== 'undefined') {
 import * as icons from './icons.js';
 import { initializeTileRefreshPause, toggleTileRefreshPause, isTileRefreshPaused, getCachedTileCount } from './tileManager.js';
 import * as Settings from './settingsManager.js';
+import { getDragModeEnabled, saveDragModeEnabled } from './settingsManager.js';
 
 const name = GM_info.script.name.toString(); // Name of userscript
 const version = GM_info.script.version.toString(); // Version of userscript
@@ -1215,7 +1216,20 @@ setTimeout(() => {
   updateMiniTracker();
 }, 100);
 
-overlayMain.handleDrag('#bm-overlay', '#bm-overlay'); // Creates dragging capability on the entire body for dragging the overlay (there is no need to run this on the #bm-bar-drag itself since it's ignoring when checking for interactive elements)
+// Function to apply drag mode based on user setting
+function applyDragMode(fullOverlayDrag = true) {
+  // Remove any existing drag handlers by creating a new overlay instance if needed
+  // The overlay class doesn't have a method to remove handlers, so we'll just set up the correct one
+  if (fullOverlayDrag) {
+    overlayMain.handleDrag('#bm-overlay', '#bm-overlay'); // Full overlay drag
+  } else {
+    overlayMain.handleDrag('#bm-overlay', '#bm-bar-drag'); // Drag bar only
+  }
+}
+
+// Initialize drag mode based on saved setting
+const dragModeEnabled = getDragModeEnabled();
+applyDragMode(dragModeEnabled);
 
 apiManager.spontaneousResponseListener(overlayMain); // Reads spontaneous fetch responces
 
@@ -9930,6 +9944,111 @@ function buildCrosshairSettingsOverlay() {
   mobileSection.appendChild(mobileDescription);
   mobileSection.appendChild(mobileToggle);
 
+  // Drag Mode Section
+  const dragModeSection = document.createElement('div');
+  dragModeSection.style.cssText = `
+    background: linear-gradient(135deg, var(--slate-800), var(--slate-750));
+    border: 1px solid var(--slate-700);
+    border-radius: ${sectionBorderRadius};
+    padding: ${sectionPadding};
+    margin-bottom: ${sectionMargin};
+    position: relative;
+    z-index: 1;
+  `;
+
+  const dragModeLabel = document.createElement('div');
+  dragModeLabel.textContent = 'Drag Mode:';
+  dragModeLabel.style.cssText = `
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+  `;
+
+  const dragModeDescription = document.createElement('div');
+  dragModeDescription.textContent = 'Choose how to drag the overlay: full overlay (easier on mobile) or drag bar only (classic mode).';
+  dragModeDescription.style.cssText = `
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.4;
+    margin-bottom: 12px;
+  `;
+
+  const dragModeToggle = document.createElement('div');
+  dragModeToggle.style.cssText = `
+    display: flex;
+    gap: 8px;
+    padding: 4px;
+    background: var(--slate-900);
+    border-radius: 8px;
+    border: 1px solid var(--slate-600);
+  `;
+
+  // Initialize drag mode setting
+  let tempDragMode = getDragModeEnabled();
+
+  const fullOverlayButton = document.createElement('button');
+  fullOverlayButton.textContent = 'Full Overlay';
+  fullOverlayButton.style.cssText = `
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    ${tempDragMode 
+      ? 'background: linear-gradient(135deg, var(--blue-500), var(--blue-600)); color: white;'
+      : 'background: transparent; color: var(--slate-300);'
+    }
+  `;
+
+  const dragBarButton = document.createElement('button');
+  dragBarButton.textContent = 'Drag Bar Only';
+  dragBarButton.style.cssText = `
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    ${!tempDragMode 
+      ? 'background: linear-gradient(135deg, var(--blue-500), var(--blue-600)); color: white;'
+      : 'background: transparent; color: var(--slate-300);'
+    }
+  `;
+
+  fullOverlayButton.onclick = () => {
+    tempDragMode = true;
+    saveDragModeEnabled(tempDragMode);
+    applyDragMode(tempDragMode);
+    
+    fullOverlayButton.style.background = 'linear-gradient(135deg, var(--blue-500), var(--blue-600))';
+    fullOverlayButton.style.color = 'white';
+    dragBarButton.style.background = 'transparent';
+    dragBarButton.style.color = 'var(--slate-300)';
+  };
+
+  dragBarButton.onclick = () => {
+    tempDragMode = false;
+    saveDragModeEnabled(tempDragMode);
+    applyDragMode(tempDragMode);
+    
+    dragBarButton.style.background = 'linear-gradient(135deg, var(--blue-500), var(--blue-600))';
+    dragBarButton.style.color = 'white';
+    fullOverlayButton.style.background = 'transparent';
+    fullOverlayButton.style.color = 'var(--slate-300)';
+  };
+
+  dragModeToggle.appendChild(fullOverlayButton);
+  dragModeToggle.appendChild(dragBarButton);
+  dragModeSection.appendChild(dragModeLabel);
+  dragModeSection.appendChild(dragModeDescription);
+  dragModeSection.appendChild(dragModeToggle);
+
   // Collapse Mini Template Section
   const collapseSection = document.createElement('div');
   collapseSection.style.cssText = `
@@ -10474,6 +10593,7 @@ function buildCrosshairSettingsOverlay() {
   navigationSection.appendChild(navigationDescription);
   navigationSection.appendChild(navigationToggle);
   contentContainer.appendChild(navigationSection);
+  contentContainer.appendChild(dragModeSection);
 
   // Debug logging section
   const debugSection = document.createElement('div');
@@ -10531,7 +10651,7 @@ function buildCrosshairSettingsOverlay() {
     font-weight: 600;
     transition: all 0.2s ease;
     ${!tempDebugEnabled 
-      ? 'background: linear-gradient(135deg, var(--emerald-500), var(--emerald-600)); color: white;'
+      ? 'background: linear-gradient(135deg, var(--blue-500), var(--blue-600)); color: white;'
       : 'background: transparent; color: var(--slate-300);'
     }
   `;
@@ -10557,7 +10677,7 @@ function buildCrosshairSettingsOverlay() {
     tempDebugEnabled = false;
     debugOffButton.style.cssText = debugOffButton.style.cssText.replace(
       /background: [^;]+;/,
-      'background: linear-gradient(135deg, var(--emerald-500), var(--emerald-600));'
+      'background: linear-gradient(135deg, var(--blue-500), var(--blue-600));'
     ).replace(/color: [^;]+;/, 'color: white;');
     debugOnButton.style.cssText = debugOnButton.style.cssText.replace(
       /background: [^;]+;/,

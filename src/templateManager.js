@@ -1877,7 +1877,7 @@ export default class TemplateManager {
         return colorStats;
         
       } else {
-        console.warn('🚨 [Enhanced Pixel Analysis] No tile progress data available - need to wait for tiles to be processed');
+        // console.warn('🚨 [Enhanced Pixel Analysis] No tile progress data available - need to wait for tiles to be processed');
         return this.getFallbackSimulatedStats(template);
       }
       

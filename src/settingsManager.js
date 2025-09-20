@@ -468,3 +468,53 @@ export function saveNavigationMethod(method) {
     console.error('Failed to save navigation method setting:', error);
   }
 }
+
+/** Gets the drag mode setting from storage
+ * @returns {boolean} True for full overlay drag, false for drag bar only
+ * @since 1.0.0
+ */
+export function getDragModeEnabled() {
+  try {
+    // Try TamperMonkey storage first
+    if (typeof GM_getValue !== 'undefined') {
+      const tmValue = GM_getValue('bmDragMode', null);
+      if (tmValue !== null) {
+        return JSON.parse(tmValue);
+      }
+    }
+    
+    // Fallback to localStorage
+    const localValue = localStorage.getItem('bmDragMode');
+    if (localValue !== null) {
+      return JSON.parse(localValue);
+    }
+    
+    // Default to true (full overlay drag)
+    return true;
+  } catch (error) {
+    console.error('Failed to load drag mode setting:', error);
+    return true;
+  }
+}
+
+/** Saves the drag mode setting to storage
+ * @param {boolean} enabled - True for full overlay drag, false for drag bar only
+ * @since 1.0.0
+ */
+export function saveDragModeEnabled(enabled) {
+  try {
+    const enabledString = JSON.stringify(enabled);
+    
+    // Save to TamperMonkey storage
+    if (typeof GM_setValue !== 'undefined') {
+      GM_setValue('bmDragMode', enabledString);
+    }
+    
+    // Also save to localStorage as backup
+    localStorage.setItem('bmDragMode', enabledString);
+    
+    debugLog('Drag mode setting saved:', enabled);
+  } catch (error) {
+    console.error('Failed to save drag mode setting:', error);
+  }
+}

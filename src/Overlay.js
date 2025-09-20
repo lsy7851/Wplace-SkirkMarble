@@ -547,13 +547,48 @@ export default class Overlay {
     }
   }
 
+  /** Removes all drag event listeners from the overlay
+   * @since 1.0.0
+   */
+  removeDragHandlers() {
+    if (this.currentDragHandlers) {
+      const { moveMe, dragHandle, mouseDownHandler, touchStartHandler, mouseMoveHandler, touchMoveHandler, mouseUpHandler, touchEndHandler, touchCancelHandler } = this.currentDragHandlers;
+      
+      if (dragHandle && mouseDownHandler) {
+        dragHandle.removeEventListener('mousedown', mouseDownHandler);
+      }
+      if (dragHandle && touchStartHandler) {
+        dragHandle.removeEventListener('touchstart', touchStartHandler);
+      }
+      if (mouseMoveHandler) {
+        document.removeEventListener('mousemove', mouseMoveHandler);
+      }
+      if (touchMoveHandler) {
+        document.removeEventListener('touchmove', touchMoveHandler);
+      }
+      if (mouseUpHandler) {
+        document.removeEventListener('mouseup', mouseUpHandler);
+      }
+      if (touchEndHandler) {
+        document.removeEventListener('touchend', touchEndHandler);
+      }
+      if (touchCancelHandler) {
+        document.removeEventListener('touchcancel', touchCancelHandler);
+      }
+      
+      this.currentDragHandlers = null;
+    }
+  }
+
   /** Handles dragging of the overlay.
    * Uses requestAnimationFrame for smooth animations and GPU-accelerated transforms.
    * @param {string} moveMe - The ID of the element to be moved
    * @param {string} iMoveThings - The ID of the drag handle element
    * @since 0.8.2
-  */
+   */
   handleDrag(moveMe, iMoveThings) {
+    // Remove existing drag handlers first
+    this.removeDragHandlers();
     let isDragging = false;
     let offsetX, offsetY = 0;
     let animationFrame = null;
@@ -656,8 +691,21 @@ export default class Overlay {
       if (interactiveTags.includes(current.tagName))
         return true;
 
-      // 2. Check if the element is scrollable
+      // 2. Check for elements with pointer cursor (indicates clickable)
       const style = window.getComputedStyle(current);
+      if (style.cursor === 'pointer')
+        return true;
+
+      // 3. Check for IMG elements with click handlers or specific attributes
+      if (current.tagName === 'IMG' && (
+        current.style.cursor === 'pointer' ||
+        current.alt?.includes('Click to') ||
+        current.onclick ||
+        current.addEventListener
+      ))
+        return true;
+
+      // 4. Check if the element is scrollable
       const isScrollable = style.overflowY === 'auto' || style.overflowY === 'scroll' || style.overflowX === 'auto' || style.overflowX === 'scroll';
       
       if (isScrollable)
@@ -688,33 +736,30 @@ export default class Overlay {
       targetY = Math.max(minY, Math.min(newY, maxY));
     }
     
-    // Mouse down - start dragging
-    dragHandle.addEventListener('mousedown', function(event) {
+    // Create handler functions that can be referenced for removal
+    const mouseDownHandler = function(event) {
       if (isElementInteractive(event.target)) return; // No dragging if user is trying to interact with text/inputs/buttons
       event.preventDefault();
       startDrag(event.clientX, event.clientY);
-    });
+    };
 
-    // Touch start - start dragging
-    dragHandle.addEventListener('touchstart', function(event) {
+    const touchStartHandler = function(event) {
       if (isElementInteractive(event.target)) return; // No dragging if user is trying to interact with text/inputs/buttons
       const touch = event?.touches?.[0];
       if (!touch) {return;}
       startDrag(touch.clientX, touch.clientY);
       event.preventDefault();
-    }, { passive: false });
+    };
 
-    // Mouse move - update target position
-    document.addEventListener('mousemove', function(event) {
+    const mouseMoveHandler = function(event) {
       if (isDragging && initialRect) {
         const newX = event.clientX - offsetX;
         const newY = event.clientY - offsetY;
         setPosition(newX, newY);
       }
-    }, { passive: true });
+    };
 
-    // Touch move - update target position
-    document.addEventListener('touchmove', function(event) {
+    const touchMoveHandler = function(event) {
       if (isDragging && initialRect) {
         const touch = event?.touches?.[0];
         if (!touch) {return;}
@@ -723,11 +768,29 @@ export default class Overlay {
         setPosition(newX, newY);
         event.preventDefault();
       }
-    }, { passive: false });
-    // End drag events
+    };
+
+    // Add event listeners
+    dragHandle.addEventListener('mousedown', mouseDownHandler);
+    dragHandle.addEventListener('touchstart', touchStartHandler, { passive: false });
+    document.addEventListener('mousemove', mouseMoveHandler, { passive: true });
+    document.addEventListener('touchmove', touchMoveHandler, { passive: false });
     document.addEventListener('mouseup', endDrag);
     document.addEventListener('touchend', endDrag);
     document.addEventListener('touchcancel', endDrag);
+
+    // Store handler references for cleanup
+    this.currentDragHandlers = {
+      moveMe,
+      dragHandle,
+      mouseDownHandler,
+      touchStartHandler,
+      mouseMoveHandler,
+      touchMoveHandler,
+      mouseUpHandler: endDrag,
+      touchEndHandler: endDrag,
+      touchCancelHandler: endDrag
+    };
   }
 
   /** Handles status display.
