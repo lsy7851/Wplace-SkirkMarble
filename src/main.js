@@ -6154,7 +6154,7 @@ function buildColorFilterOverlay() {
       position: fixed;
       top: 100px;
       right: 20px;
-      width: 220px;
+      width: 240px;
       background: var(--slate-800);
       border: 1px solid var(--bmcf-border);
       border-radius: 12px;
@@ -6207,6 +6207,15 @@ function buildColorFilterOverlay() {
       compactCollapseArrow.style.background = 'var(--slate-600)';
     });
     compactCollapseArrow.addEventListener('mouseleave', () => {
+      compactCollapseArrow.style.background = 'none';
+    });
+    
+    // Touch support for mobile
+    compactCollapseArrow.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      compactCollapseArrow.style.background = 'var(--slate-600)';
+    });
+    compactCollapseArrow.addEventListener('touchend', () => {
       compactCollapseArrow.style.background = 'none';
     });
     
@@ -6282,8 +6291,8 @@ function buildColorFilterOverlay() {
       compactHeader.style.borderBottom = '1px solid var(--bmcf-border)';
     }
 
-    // Add collapse functionality - only on arrow click
-    compactCollapseArrow.addEventListener('click', (e) => {
+    // Add collapse functionality - only on arrow click (works for both click and touch)
+    const handleCollapseToggle = (e) => {
       e.stopPropagation(); // Prevent dragging when clicking to collapse
       
       isCollapsed = !isCollapsed;
@@ -6334,7 +6343,11 @@ function buildColorFilterOverlay() {
           }
         }, 300);
       }
-    });
+    };
+    
+    // Add both click and touch event listeners for mobile compatibility
+    compactCollapseArrow.addEventListener('click', handleCollapseToggle);
+    compactCollapseArrow.addEventListener('touchstart', handleCollapseToggle);
 
     // Add search bar section
     const compactSearchContainer = document.createElement('div');
