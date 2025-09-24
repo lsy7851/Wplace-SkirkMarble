@@ -67,5 +67,7 @@
   "bm-search": "bm-11",
   "bm-help": "bm-12",
   "bm-name": "bm-13",
-  "bm-button-compact-direct": "bm-1g"
+  "bm-button-compact-direct": "bm-1g",
+  "bm-overlay-configs-overlay": "bm-1b",
+  "bm-coords-compact-icon": "bm-1t"
 }

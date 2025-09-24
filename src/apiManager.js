@@ -108,8 +108,20 @@ export default class ApiManager {
             const el = document.getElementById('bm-user-name');
             if (el) el.style.display = show ? '' : 'none';
           } catch(_) {}
+          
           overlay.updateInnerHTML('bm-user-droplets-content', `<b>Droplets:</b> ${new Intl.NumberFormat().format(dataJSON['droplets'])}`); // Updates the text content of the droplets field
+          try {
+            const show = JSON.parse(localStorage.getItem('bmShowDroplets') ?? 'true');
+            const el = document.getElementById('bm-user-droplets');
+            if (el) el.style.display = show ? '' : 'none';
+          } catch(_) {}
+          
           overlay.updateInnerHTML('bm-user-nextlevel-content', `Next level in <b>${new Intl.NumberFormat().format(nextLevelPixels)}</b> pixel${nextLevelPixels == 1 ? '' : 's'}`); // Updates the text content of the next level field
+          try {
+            const show = JSON.parse(localStorage.getItem('bmShowNextLevel') ?? 'true');
+            const el = document.getElementById('bm-user-nextlevel');
+            if (el) el.style.display = show ? '' : 'none';
+          } catch(_) {}
           
           // Update full charge countdown
           this.updateFullChargeInfo(overlay, dataJSON);
@@ -230,6 +242,12 @@ export default class ApiManager {
     } else {
       // No charge data available
       overlay.updateInnerHTML('bm-user-fullcharge-content','Full Charge in <b style="color: #6b7280;">N/A</b>');
+      // Apply visibility setting
+      try {
+        const show = JSON.parse(localStorage.getItem('bmShowFullCharge') ?? 'true');
+        const el = document.getElementById('bm-user-fullcharge');
+        if (el) el.style.display = show ? '' : 'none';
+      } catch(_) {}
     }
   }
 
@@ -247,6 +265,13 @@ export default class ApiManager {
     // If already at full charges
     if (data.current >= data.max || remainingMs <= 0) {
       overlay.updateInnerHTML('bm-user-fullcharge-content', `Full Charge in <b style="color: #10b981;">FULL</b>`);
+      
+      // Apply visibility setting
+      try {
+        const show = JSON.parse(localStorage.getItem('bmShowFullCharge') ?? 'true');
+        const el = document.getElementById('bm-user-fullcharge');
+        if (el) el.style.display = show ? '' : 'none';
+      } catch(_) {}
       
       // Clear interval when full
       if (window.skirkChargeInterval) {
@@ -279,5 +304,12 @@ export default class ApiManager {
     overlay.updateInnerHTML('bm-user-fullcharge-content', 
       `Full Charge in <b style="color: #f59e0b;">${timeText}</b> <span style="color: #6b7280; font-size: 0.9em;">(${chargesText})</span>`
     );
+    
+    // Apply visibility setting
+    try {
+      const show = JSON.parse(localStorage.getItem('bmShowFullCharge') ?? 'true');
+      const el = document.getElementById('bm-user-fullcharge');
+      if (el) el.style.display = show ? '' : 'none';
+    } catch(_) {}
   }
 }

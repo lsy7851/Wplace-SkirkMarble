@@ -2297,6 +2297,9 @@ function deleteSelectedTemplate(instance) {
             const success = await templateManager.deleteTemplate(templateKey);
             
             if (success) {
+            // Invalidate cache after template deletion
+            invalidateTemplateCache();
+            
             // Remove overlay
             document.body.removeChild(overlay);
             
@@ -3062,6 +3065,9 @@ function showTemplateManageDialog(instance) {
       const newState = !templateManager.isTemplateEnabled(templateKey);
       templateManager.setTemplateEnabled(templateKey, newState);
       
+      // Invalidate cache after template enable/disable
+      invalidateTemplateCache();
+      
       // Update button appearance
       toggleBtn.textContent = newState ? 'Enabled' : 'Disabled';
       toggleBtn.style.background = newState 
@@ -3188,6 +3194,9 @@ function showTemplateManageDialog(instance) {
             const success = await templateManager.deleteTemplate(templateKey);
             
             if (success) {
+              // Invalidate cache after template deletion
+              invalidateTemplateCache();
+              
               // Remove the template item from the dialog
               templateItem.remove();
               
@@ -3236,6 +3245,10 @@ function showTemplateManageDialog(instance) {
   enableAllBtn.style.cssText = `padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; background: linear-gradient(135deg,#10b981,#059669); color: white;`;
   enableAllBtn.onclick = () => {
     Object.keys(templates).forEach(k => templateManager.setTemplateEnabled(k, true));
+    
+    // Invalidate cache after enabling all templates
+    invalidateTemplateCache();
+    
     instance.handleDisplayStatus('Enabled all templates');
     // Update visible buttons text/colors
     content.querySelectorAll('button').forEach(btn => {
@@ -3251,6 +3264,10 @@ function showTemplateManageDialog(instance) {
   disableAllBtn.style.cssText = `padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; background: linear-gradient(135deg,#64748b,#475569); color: #e2e8f0;`;
   disableAllBtn.onclick = () => {
     Object.keys(templates).forEach(k => templateManager.setTemplateEnabled(k, false));
+    
+    // Invalidate cache after disabling all templates
+    invalidateTemplateCache();
+    
     instance.handleDisplayStatus('Disabled all templates');
     content.querySelectorAll('button').forEach(btn => {
       if (btn.textContent === 'Disabled' || btn.textContent === 'Enabled') {
@@ -3597,7 +3614,17 @@ function buildOverlayMain() {
       .addHeader(1, {'textContent': 'Skirk Marble'}).buildElement()
     .buildElement()
 
-    .addDiv({ id: 'bm-separator' })
+    .addDiv({ 
+      id: 'bm-separator', 
+      style: (() => {
+        try {
+          const show = JSON.parse(localStorage.getItem('bmShowInformationHeader') ?? 'true');
+          return show ? '' : 'display: none;';
+        } catch (e) {
+          return '';
+        }
+      })()
+    })
       .addHr().buildElement()
       .addDiv({ id: 'bm-separator-text'})
         .addDiv({ innerHTML: icons.informationIcon }).buildElement()
@@ -3626,7 +3653,17 @@ function buildOverlayMain() {
     .buildElement()
     
 
-    .addDiv({ id: 'bm-separator' })
+    .addDiv({ 
+      id: 'bm-separator', 
+      style: (() => {
+        try {
+          const show = JSON.parse(localStorage.getItem('bmShowTemplateHeader') ?? 'true');
+          return show ? '' : 'display: none;';
+        } catch (e) {
+          return '';
+        }
+      })()
+    })
       .addHr().buildElement()
       .addDiv({ id: 'bm-separator-text'})
         .addDiv({ innerHTML: icons.templateIcon }).buildElement()
@@ -3689,6 +3726,9 @@ function buildOverlayMain() {
             if (!input?.files[0]) {instance.handleDisplayError(`No file selected!`); return;}
 
             templateManager.createTemplate(input.files[0], input.files[0]?.name.replace(/\.[^/.]+$/, ''), [Number(coordTlX.value), Number(coordTlY.value), Number(coordPxX.value), Number(coordPxY.value)]);
+
+            // Invalidate cache after template creation
+            invalidateTemplateCache();
 
             // Update mini tracker after template creation
             setTimeout(() => updateMiniTracker(), 500);
@@ -3934,6 +3974,7 @@ function buildOverlayTabTemplate() {
       .buildElement()
     .buildElement()
   .buildOverlay();
+
 }
 
 
@@ -8803,6 +8844,60 @@ setTimeout(() => {
   // Pin functionality removed - Color Toggle is now just a simple toggle without persistence
 }, 2000); // Start after 2 seconds to let everything initialize
 
+/** Apply header visibility based on localStorage setting
+ * @param {string} key - localStorage key (bmShowInformationHeader or bmShowTemplateHeader)
+ * @param {boolean} visible - Whether the header should be visible
+ * @since 1.0.0
+ */
+function applyHeaderVisibility(key, visible) {
+  try {
+    const separators = document.querySelectorAll('[id="bm-separator"]');
+    
+    separators.forEach((separator) => {
+      const separatorText = separator.querySelector('#bm-separator-text p');
+      if (separatorText) {
+        const text = separatorText.textContent.trim();
+        
+        if (key === 'bmShowInformationHeader' && text === 'Information') {
+          separator.style.display = visible ? '' : 'none';
+        } else if (key === 'bmShowTemplateHeader' && text === 'Template') {
+          separator.style.display = visible ? '' : 'none';
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('Failed to apply header visibility:', error);
+  }
+}
+
+
+/** Apply all stored overlay settings (fallback function for manual use)
+ * @since 1.0.0
+ */
+function applyStoredOverlaySettings() {
+  try {
+    // Read settings from localStorage
+    const showInfoHeader = JSON.parse(localStorage.getItem('bmShowInformationHeader') ?? 'true');
+    const showTemplateHeader = JSON.parse(localStorage.getItem('bmShowTemplateHeader') ?? 'true');
+    
+    // Apply header visibility (fallback - usually handled during creation)
+    applyHeaderVisibility('bmShowInformationHeader', showInfoHeader);
+    applyHeaderVisibility('bmShowTemplateHeader', showTemplateHeader);
+    
+  } catch (error) {
+    console.error('Failed to apply stored overlay settings:', error);
+  }
+}
+
+
+
+/** Manual test function for overlay settings (console only)
+ * @since 1.0.0
+ */
+window.testOverlaySettings = () => applyStoredOverlaySettings();
+
+
 /** Builds and displays the crosshair settings overlay
  * @since 1.0.0
  */
@@ -10439,9 +10534,10 @@ function buildCrosshairSettingsOverlay() {
   contentContainer.appendChild(alphaSection);
   contentContainer.appendChild(borderSection);
 
-  // Username visibility setting
-  const usernameSection = document.createElement('div');
-  usernameSection.style.cssText = `
+
+  // Overlay Elements Visibility Settings
+  const overlayVisibilitySection = document.createElement('div');
+  overlayVisibilitySection.style.cssText = `
     background: linear-gradient(135deg, var(--slate-800), var(--slate-750));
     border: 1px solid var(--slate-700);
     border-radius: ${sectionBorderRadius};
@@ -10449,24 +10545,82 @@ function buildCrosshairSettingsOverlay() {
     margin-bottom: ${sectionMargin};
     position: relative;
     z-index: 1;`;
-  const usernameLabel = document.createElement('label');
-  usernameLabel.style.cssText = 'display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none;';
-  const usernameCheckbox = document.createElement('input');
-  usernameCheckbox.type = 'checkbox';
-  try { usernameCheckbox.checked = JSON.parse(localStorage.getItem('bmShowUsername') ?? 'true'); } catch(_) { usernameCheckbox.checked = true; }
-  const usernameText = document.createElement('span');
-  usernameText.textContent = 'Show Username in main window';
-  usernameText.style.cssText = 'color: var(--slate-200); font-weight:600;';
-  usernameCheckbox.onchange = () => {
-    const next = !!usernameCheckbox.checked;
-    localStorage.setItem('bmShowUsername', JSON.stringify(next));
-    const el = document.getElementById('bm-user-name');
-    if (el) el.style.display = next ? '' : 'none';
+
+  const overlayVisibilityTitle = document.createElement('div');
+  overlayVisibilityTitle.textContent = 'Overlay Elements Visibility:';
+  overlayVisibilityTitle.style.cssText = `
+    font-size: 1em; 
+    margin-bottom: 12px; 
+    color: var(--slate-200); 
+    font-weight: 600;
+  `;
+
+  // Create checkboxes container
+  const checkboxContainer = document.createElement('div');
+  checkboxContainer.style.cssText = `
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  `;
+
+  // Helper function to create checkbox
+  const createVisibilityCheckbox = (key, label, elementId) => {
+    const checkboxDiv = document.createElement('div');
+    checkboxDiv.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.style.cssText = 'accent-color: var(--blue-500);';
+    
+    // Load saved value
+    let savedValue;
+    try { 
+      savedValue = JSON.parse(localStorage.getItem(key) ?? 'true'); 
+    } catch(e) { 
+      savedValue = true; 
+    }
+    checkbox.checked = savedValue;
+    
+    const text = document.createElement('span');
+    text.textContent = label;
+    text.style.cssText = 'color: var(--slate-300); font-size: 0.9em; cursor: pointer;';
+    
+    const changeHandler = () => {
+      const next = !!checkbox.checked;
+      localStorage.setItem(key, JSON.stringify(next));
+      
+      if (elementId) {
+        const el = document.getElementById(elementId);
+        if (el) {
+          el.style.display = next ? '' : 'none';
+        }
+      } else {
+        // For headers, apply visibility
+        applyHeaderVisibility(key, next);
+      }
+    };
+    
+    checkbox.onchange = changeHandler;
+    text.onclick = () => { checkbox.checked = !checkbox.checked; changeHandler(); };
+    
+    checkboxDiv.appendChild(checkbox);
+    checkboxDiv.appendChild(text);
+    return checkboxDiv;
   };
-  usernameLabel.appendChild(usernameCheckbox);
-  usernameLabel.appendChild(usernameText);
-  usernameSection.appendChild(usernameLabel);
-  contentContainer.appendChild(usernameSection);
+
+  // Add all checkboxes
+  checkboxContainer.appendChild(createVisibilityCheckbox('bmShowInformationHeader', 'Information Header'));
+  checkboxContainer.appendChild(createVisibilityCheckbox('bmShowTemplateHeader', 'Template Header'));
+  checkboxContainer.appendChild(createVisibilityCheckbox('bmShowUsername', 'Username', 'bm-user-name'));
+  checkboxContainer.appendChild(createVisibilityCheckbox('bmShowDroplets', 'Droplets', 'bm-user-droplets'));
+  checkboxContainer.appendChild(createVisibilityCheckbox('bmShowNextLevel', 'Next Level', 'bm-user-nextlevel'));
+  checkboxContainer.appendChild(createVisibilityCheckbox('bmShowFullCharge', 'Full Charge', 'bm-user-fullcharge'));
+  
+
+  overlayVisibilitySection.appendChild(overlayVisibilityTitle);
+  overlayVisibilitySection.appendChild(checkboxContainer);
+  contentContainer.appendChild(overlayVisibilitySection);
+
   contentContainer.appendChild(sizeSection);
   contentContainer.appendChild(radiusSection);
   contentContainer.appendChild(trackerSection);
