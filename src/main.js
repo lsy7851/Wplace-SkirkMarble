@@ -3752,10 +3752,13 @@ function buildOverlayMain() {
           style: 'display: flex; gap: 6px; align-items: center; margin-bottom: 6px;'
         })
           .addDiv({
-            innerHTML: '<input type="text" id="bm-color-search" placeholder="🔍 Search colors..." style="flex: 1; padding: 4px 8px; font-size: 11px; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; background: rgba(255,255,255,0.1); color: white; min-width: 0;" autocomplete="off">',
+            innerHTML: '<input type="text" id="bm-color-search" placeholder="🔍 Search colors..." style="flex: 1; padding: 4px 8px; font-size: 11px; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; background: rgba(255,255,255,0.1); color: white; min-width: 0; max-width: 120px;" autocomplete="off">',
           }).buildElement()
           .addDiv({
-            innerHTML: '<select id="bm-color-sort" style="padding: 4px 6px; font-size: 11px; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; background: rgba(255,255,255,0.1); color: white; min-width: 80px;"><option value="default" style="background: #2a2a2a; color: white;">Default</option><option value="most-missing" style="background: #2a2a2a; color: white;">Most Missing</option><option value="less-missing" style="background: #2a2a2a; color: white;">Less Missing</option><option value="most-painted" style="background: #2a2a2a; color: white;">Most Painted</option><option value="less-painted" style="background: #2a2a2a; color: white;">Less Painted</option><option value="enhanced" style="background: #2a2a2a; color: white;">Enhanced Only</option><option value="name-asc" style="background: #2a2a2a; color: white;">Name A-Z</option><option value="name-desc" style="background: #2a2a2a; color: white;">Name Z-A</option></select>',
+            innerHTML: '<select id="bm-color-sort" style="padding: 4px 6px; font-size: 11px; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; background: rgba(255,255,255,0.1); color: white; flex: 1; min-width: 80px;"><option value="default" style="background: #2a2a2a; color: white;">Default</option><option value="premium" style="background: #2a2a2a; color: white;">Premium 💧</option><option value="most-wrong" style="background: #2a2a2a; color: white;">Most Wrong</option><option value="most-missing" style="background: #2a2a2a; color: white;">Most Missing</option><option value="less-missing" style="background: #2a2a2a; color: white;">Less Missing</option><option value="most-painted" style="background: #2a2a2a; color: white;">Most Painted</option><option value="less-painted" style="background: #2a2a2a; color: white;">Less Painted</option><option value="enhanced" style="background: #2a2a2a; color: white;">Enhanced Only</option><option value="name-asc" style="background: #2a2a2a; color: white;">Name A-Z</option><option value="name-desc" style="background: #2a2a2a; color: white;">Name Z-A</option></select>',
+          }).buildElement()
+          .addDiv({
+            innerHTML: '<button id="bm-color-toggle-all" title="Enable/Disable All Colors" style="padding: 4px 8px; font-size: 11px; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; background: rgba(255,255,255,0.1); color: white; cursor: pointer; white-space: nowrap;">⚡</button>',
           }).buildElement()
         .buildElement()
         .addDiv({ 
@@ -9188,10 +9191,12 @@ function updateColorMenuNumbers() {
       // Update the text content (find the info div and update innerHTML)
       const infoDiv = item.querySelector('div[style*="flex: 1"]');
       if (infoDiv) {
+        const isPremium = colorInfo.free === false;
         infoDiv.innerHTML = `
-          <div style="color: white; font-weight: 500; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          <div style="color: white; font-weight: 500; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: ${isPremium ? '18px' : '0'};">
             ${colorInfo.name} <span style="color: #888;">${painted} / ${totalPixels}</span> <span style="color: #888;">(${percentage}%)</span> <span style="color: #ff8c42; font-weight: bold;">${remaining.toLocaleString()}</span>
           </div>
+          ${isPremium ? '<span style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 10px; opacity: 0.7;">💧</span>' : ''}
         `;
       }
     }).catch(() => {
@@ -9245,6 +9250,7 @@ function updateColorMenuDisplay(resetFilters = true, forceUpdate = false) {
     
     let colorsAdded = 0;
     
+    let colorIndex = 0;
     colorPalette.forEach((colorInfo, index) => {
       if (index === 0) return;
       
@@ -9271,10 +9277,12 @@ function updateColorMenuDisplay(resetFilters = true, forceUpdate = false) {
       
       const colorItem = document.createElement('div');
       colorItem.className = 'bm-color-item';
+      colorItem.setAttribute('data-original-index', colorIndex++);
       
       const left = remaining;
       const total = totalPixels;
       const percentage = total > 0 ? Math.round((painted / total) * 100) : 0;
+      const isPremium = colorInfo.free === false;
       
       colorItem.setAttribute('data-name', colorInfo.name.toLowerCase());
       colorItem.setAttribute('data-painted', painted);
@@ -9283,6 +9291,7 @@ function updateColorMenuDisplay(resetFilters = true, forceUpdate = false) {
       colorItem.setAttribute('data-percentage', percentage);
       colorItem.setAttribute('data-enhanced', isEnhanced ? '1' : '0');
       colorItem.setAttribute('data-disabled', isDisabled ? '1' : '0');
+      colorItem.setAttribute('data-premium', isPremium ? '1' : '0');
       
       colorItem.style.cssText = `
         display: flex;
@@ -9350,12 +9359,13 @@ function updateColorMenuDisplay(resetFilters = true, forceUpdate = false) {
       
       // Color info - número laranja movido para DEPOIS da porcentagem
       const info = document.createElement('div');
-      info.style.cssText = 'flex: 1; overflow: hidden; cursor: pointer; min-width: 0;';
+      info.style.cssText = 'flex: 1; overflow: hidden; cursor: pointer; min-width: 0; position: relative;';
       
       info.innerHTML = `
-        <div style="color: white; font-weight: 500; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+        <div style="color: white; font-weight: 500; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: ${isPremium ? '18px' : '0'};">
           ${colorInfo.name} <span style="color: #888;">${painted} / ${total}</span> <span style="color: #888;">(${percentage}%)</span> <span style="color: #ff8c42; font-weight: bold;">${left.toLocaleString()}</span>
         </div>
+        ${isPremium ? '<span style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 10px; opacity: 0.7;">💧</span>' : ''}
       `;
       
       // Click handler to toggle color enable/disable (on swatch and info)
@@ -9584,6 +9594,54 @@ function setupColorMenuFilters(resetFilters) {
     delete sortSelect._bmColorMenuListener;
   }
   
+  // Setup toggle all button
+  const toggleAllBtn = document.getElementById('bm-color-toggle-all');
+  if (toggleAllBtn && !toggleAllBtn._bmToggleListenerAdded) {
+    toggleAllBtn.addEventListener('click', () => {
+      const currentTemplate = templateManager?.templatesArray?.[0];
+      if (!currentTemplate) return;
+      
+      const items = Array.from(colorList.querySelectorAll('.bm-color-item'));
+      if (items.length === 0) return;
+      
+      const allDisabled = items.every(item => item.getAttribute('data-disabled') === '1');
+      
+      items.forEach(item => {
+        const swatch = item.querySelector('div[style*="background: rgb"]');
+        if (!swatch) return;
+        
+        const rgbMatch = swatch.style.background.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (!rgbMatch) return;
+        
+        const rgb = [parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3])];
+        
+        if (allDisabled) {
+          currentTemplate.enableColor?.(rgb);
+          item.style.opacity = '1';
+          item.setAttribute('data-disabled', '0');
+        } else {
+          currentTemplate.disableColor?.(rgb);
+          item.style.opacity = '0.5';
+          item.setAttribute('data-disabled', '1');
+        }
+      });
+      
+      invalidateTemplateCache();
+      templateManager.updateTemplateWithColorFilter(0);
+      
+      if (colorMenuCache.templateId) {
+        const newDisabledColors = (currentTemplate.getDisabledColors?.() || []).sort().join(',');
+        colorMenuCache.disabledColors = newDisabledColors;
+      }
+      
+      skipNextColorMenuUpdate = true;
+      setTimeout(() => {
+        skipNextColorMenuUpdate = false;
+      }, 2000);
+    });
+    toggleAllBtn._bmToggleListenerAdded = true;
+  }
+  
   // Reset filters if requested (but preserve current values if user is actively using them)
   if (resetFilters) {
     // Only reset if inputs are not currently focused or have user input
@@ -9633,26 +9691,40 @@ function setupColorMenuFilters(resetFilters) {
     });
     
     // Sort items
-    if (sortBy && sortBy !== 'default') {
-      filteredItems.sort((a, b) => {
-        switch (sortBy) {
-          case 'most-missing':
-            return parseInt(b.getAttribute('data-left') || '0') - parseInt(a.getAttribute('data-left') || '0');
-          case 'less-missing':
-            return parseInt(a.getAttribute('data-left') || '0') - parseInt(b.getAttribute('data-left') || '0');
-          case 'most-painted':
-            return parseInt(b.getAttribute('data-painted') || '0') - parseInt(a.getAttribute('data-painted') || '0');
-          case 'less-painted':
-            return parseInt(a.getAttribute('data-painted') || '0') - parseInt(b.getAttribute('data-painted') || '0');
-          case 'name-asc':
-            return (a.getAttribute('data-name') || '').localeCompare(b.getAttribute('data-name') || '');
-          case 'name-desc':
-            return (b.getAttribute('data-name') || '').localeCompare(a.getAttribute('data-name') || '');
-          default:
-            return parseInt(a.getAttribute('data-original-index') || '0') - parseInt(b.getAttribute('data-original-index') || '0');
+    filteredItems.sort((a, b) => {
+      if (!sortBy || sortBy === 'default') {
+        return parseInt(a.getAttribute('data-original-index') || '0') - parseInt(b.getAttribute('data-original-index') || '0');
+      }
+      
+      switch (sortBy) {
+        case 'premium': {
+          const aIsPremium = a.getAttribute('data-premium') === '1';
+          const bIsPremium = b.getAttribute('data-premium') === '1';
+          if (aIsPremium && !bIsPremium) return -1;
+          if (!aIsPremium && bIsPremium) return 1;
+          return parseInt(b.getAttribute('data-left') || '0') - parseInt(a.getAttribute('data-left') || '0');
         }
-      });
-    }
+        case 'most-wrong': {
+          const aWrong = parseInt(a.getAttribute('data-total') || '0') - parseInt(a.getAttribute('data-painted') || '0');
+          const bWrong = parseInt(b.getAttribute('data-total') || '0') - parseInt(b.getAttribute('data-painted') || '0');
+          return bWrong - aWrong;
+        }
+        case 'most-missing':
+          return parseInt(b.getAttribute('data-left') || '0') - parseInt(a.getAttribute('data-left') || '0');
+        case 'less-missing':
+          return parseInt(a.getAttribute('data-left') || '0') - parseInt(b.getAttribute('data-left') || '0');
+        case 'most-painted':
+          return parseInt(b.getAttribute('data-painted') || '0') - parseInt(a.getAttribute('data-painted') || '0');
+        case 'less-painted':
+          return parseInt(a.getAttribute('data-painted') || '0') - parseInt(b.getAttribute('data-painted') || '0');
+        case 'name-asc':
+          return (a.getAttribute('data-name') || '').localeCompare(b.getAttribute('data-name') || '');
+        case 'name-desc':
+          return (b.getAttribute('data-name') || '').localeCompare(a.getAttribute('data-name') || '');
+        default:
+          return parseInt(a.getAttribute('data-original-index') || '0') - parseInt(b.getAttribute('data-original-index') || '0');
+      }
+    });
     
     // Hide all items first
     currentItems.forEach(item => {
@@ -9663,7 +9735,7 @@ function setupColorMenuFilters(resetFilters) {
     if (filteredItems.length > 0) {
       filteredItems.forEach(item => {
         item.style.display = 'flex';
-        colorList.appendChild(item); // Re-append to maintain order
+        colorList.appendChild(item);
       });
     } else {
       // Show "no results" message
