@@ -42,10 +42,10 @@ function inject(callback) {
     script.remove();
 }
 
-function flyToLatLng(lat, lng) {
+function flyToLatLng(lat, lng, zoom = 16) {
   unsafeWindow.bmmap.flyTo({
       'center': [lng, lat],
-      'zoom': 16,
+      'zoom': zoom,
   })
 }
 
@@ -1350,8 +1350,24 @@ function observeOpacityButton() {
     mapButtonContainer = document.createElement('div');
     mapButtonContainer.id = 'bm-map-button-container';
     mapButtonContainer.className = 'fixed z-30';
-    mapButtonContainer.style.bottom = '230px'; // Fixed position above opacity button (approximate)
-    mapButtonContainer.style.left = '12px'; // Fixed position aligned with opacity button
+    mapButtonContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      bottom: 230px;
+      left: 12px;
+    `;
+    
+    // Create the Wrong Pixels button (above Error Map button)
+    const wrongPixelsButton = document.createElement('button');
+    wrongPixelsButton.id = 'bm-button-wrong-pixels';
+    wrongPixelsButton.innerHTML = '❌';
+    wrongPixelsButton.className = 'btn btn-lg btn-square sm:btn-xl z-30 shadow-md text-base-content/80';
+    wrongPixelsButton.title = 'View Wrong Pixels Coordinates';
+    
+    wrongPixelsButton.onclick = function() {
+      showWrongPixelsDialog(overlayMain);
+    };
     
     // Create the Map button
     const mapButton = document.createElement('button');
@@ -1380,7 +1396,8 @@ function observeOpacityButton() {
       overlayMain.handleDisplayStatus(`Error Map ${isEnabled ? 'enabled' : 'disabled'}! ${isEnabled ? 'Green=correct, Red=wrong pixels' : 'Back to normal view'}`);
     };
     
-    // Add the button to our container
+    // Add the buttons to our container
+    mapButtonContainer.appendChild(wrongPixelsButton);
     mapButtonContainer.appendChild(mapButton);
     
     // Insert the Map button container directly into the body with fixed positioning
@@ -2595,6 +2612,263 @@ function showImportDialog(instance) {
   document.body.appendChild(overlay);
 }
 
+/** Shows wrong pixels coordinates dialog with fly-to functionality
+ * @param {Object} instance - The overlay instance
+ * @since 1.0.0
+ */
+function showWrongPixelsDialog(instance) {
+  const wrongPixelsList = [];
+  
+  if (!templateManager || !templateManager.tileProgress || templateManager.tileProgress.size === 0) {
+    instance.handleDisplayError('No tile data available. Please load a template first!');
+    return;
+  }
+  
+  for (const [tileCoords, tileData] of templateManager.tileProgress.entries()) {
+    if (tileData.wrong > 0 && tileData.colorBreakdown) {
+      const [tileX, tileY] = tileCoords.split(',').map(Number);
+      
+      for (const [colorKey, colorStats] of Object.entries(tileData.colorBreakdown)) {
+        if (colorStats.wrong > 0 && colorStats.firstWrongPixel) {
+          wrongPixelsList.push({
+            tileX,
+            tileY,
+            colorKey,
+            wrongCount: colorStats.wrong,
+            tileCoords: `${tileX}, ${tileY}`,
+            pixelX: colorStats.firstWrongPixel[0],
+            pixelY: colorStats.firstWrongPixel[1]
+          });
+        }
+      }
+    }
+  }
+  
+  if (wrongPixelsList.length === 0) {
+    instance.handleDisplayStatus('🎉 No wrong pixels found! All pixels match the template!');
+    return;
+  }
+  
+  wrongPixelsList.sort((a, b) => b.wrongCount - a.wrongCount);
+  
+  const overlay = document.createElement('div');
+  overlay.id = 'bm-wrong-pixels-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  `;
+  
+  const container = document.createElement('div');
+  container.style.cssText = `
+    background: #1e293b;
+    color: #f1f5f9;
+    border-radius: 20px;
+    border: 1px solid #334155;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(16px);
+    max-width: 600px;
+    width: 90%;
+    max-height: 85vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  `;
+  
+  // Header
+  const header = document.createElement('div');
+  header.style.cssText = `
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px 16px 24px;
+    border-bottom: 1px solid #334155;
+    background: linear-gradient(135deg, #1e293b, #293548);
+  `;
+  
+  const title = document.createElement('h3');
+  title.textContent = `Wrong Pixels (${wrongPixelsList.length} locations)`;
+  title.style.cssText = `
+    margin: 0;
+    font-size: 1.5em;
+    font-weight: 700;
+    background: linear-gradient(135deg, #f87171, #ef4444);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  `;
+  
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '×';
+  closeBtn.className = 'bm-close-btn';
+  closeBtn.style.cssText = `
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+  `;
+  closeBtn.onclick = () => document.body.removeChild(overlay);
+  
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+  
+  const content = document.createElement('div');
+  content.style.cssText = `
+    padding: 20px 24px;
+    overflow-y: auto;
+    flex: 1;
+  `;
+  
+  const pixelsList = document.createElement('div');
+  pixelsList.style.cssText = `
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  `;
+  
+  const loadingDiv = document.createElement('div');
+  loadingDiv.style.cssText = `
+    text-align: center;
+    padding: 40px;
+    color: #94a3b8;
+    font-size: 14px;
+  `;
+  loadingDiv.textContent = 'Loading wrong pixels...';
+  pixelsList.appendChild(loadingDiv);
+  
+  content.appendChild(pixelsList);
+  container.appendChild(header);
+  container.appendChild(content);
+  overlay.appendChild(container);
+  
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      document.body.removeChild(overlay);
+    }
+  });
+  
+  document.body.appendChild(overlay);
+  
+  requestAnimationFrame(() => {
+    pixelsList.innerHTML = '';
+    
+    wrongPixelsList.forEach((wrongPixel, index) => {
+      const pixelItem = document.createElement('div');
+      pixelItem.style.cssText = `
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        background: #334155;
+        border-radius: 10px;
+        border: 1px solid #475569;
+        gap: 12px;
+      `;
+      
+      // Color swatch
+      const [r, g, b] = wrongPixel.colorKey.split(',').map(Number);
+      const swatch = document.createElement('div');
+      swatch.style.cssText = `
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        background: rgb(${r}, ${g}, ${b});
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        flex-shrink: 0;
+      `;
+      
+      // Info section
+      const info = document.createElement('div');
+      info.style.cssText = 'flex: 1; min-width: 0;';
+      info.innerHTML = `
+        <div style="font-weight: 600; color: #f1f5f9; margin-bottom: 4px;">
+          Tile ${wrongPixel.tileX}, ${wrongPixel.tileY}
+        </div>
+        <div style="font-size: 0.85em; color: #94a3b8;">
+          ${wrongPixel.wrongCount} wrong pixel${wrongPixel.wrongCount > 1 ? 's' : ''} • RGB(${r}, ${g}, ${b})
+        </div>
+      `;
+      
+      // Fly button
+      const flyBtn = document.createElement('button');
+      flyBtn.innerHTML = icons.pinIcon;
+      flyBtn.title = 'Fly to this tile';
+      flyBtn.style.cssText = `
+        padding: 8px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        min-width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        flex-shrink: 0;
+      `;
+      
+      flyBtn.onclick = () => {
+        const pX = wrongPixel.pixelX;
+        const pY = wrongPixel.pixelY;
+        const coordinates = [wrongPixel.tileX, wrongPixel.tileY, pX, pY];
+        
+        const coordTxInput = document.querySelector('#bm-input-tx');
+        const coordTyInput = document.querySelector('#bm-input-ty');
+        const coordPxInput = document.querySelector('#bm-input-px');
+        const coordPyInput = document.querySelector('#bm-input-py');
+        
+        if (coordTxInput) coordTxInput.value = wrongPixel.tileX;
+        if (coordTyInput) coordTyInput.value = wrongPixel.tileY;
+        if (coordPxInput) coordPxInput.value = pX;
+        if (coordPyInput) coordPyInput.value = pY;
+        
+        const latLng = canvasPosToLatLng(coordinates);
+        
+        if (latLng) {
+          const navigationMethod = Settings.getNavigationMethod();
+          const zoom = 19.5;
+          
+          if (navigationMethod === 'openurl') {
+            const url = `https://wplace.live/?lat=${latLng.lat}&lng=${latLng.lng}&zoom=${zoom}`;
+            window.location.href = url;
+          } else {
+            flyToLatLng(latLng.lat, latLng.lng, zoom);
+          }
+          
+          document.body.removeChild(overlay);
+          instance.handleDisplayStatus(`🧭 ${navigationMethod === 'openurl' ? 'Navigating' : 'Flying'} to wrong pixel at Tile ${wrongPixel.tileX},${wrongPixel.tileY} (${pX}, ${pY})!`);
+        } else {
+          instance.handleDisplayError('❌ Unable to convert coordinates!');
+        }
+      };
+      
+      pixelItem.appendChild(swatch);
+      pixelItem.appendChild(info);
+      pixelItem.appendChild(flyBtn);
+      pixelsList.appendChild(pixelItem);
+    });
+  });
+}
+
 /** Shows a comprehensive template management dialog
  * @param {Object} instance - The overlay instance
  * @since 1.0.0
@@ -2643,6 +2917,30 @@ function showTemplateManageDialog(instance) {
     const mobileStyles = document.createElement('style');
     mobileStyles.id = 'bm-manage-mobile-styles';
     mobileStyles.textContent = `
+      /* Template manager styles with hardware acceleration */
+      #bm-template-manage-overlay .bm-close-btn {
+        transition: background 0.15s ease, color 0.15s ease;
+      }
+      #bm-template-manage-overlay .bm-close-btn:hover {
+        background: rgba(239, 68, 68, 0.1) !important;
+        color: #ef4444 !important;
+      }
+      #bm-template-manage-overlay .bm-template-item {
+        will-change: transform, background;
+        transition: transform 0.15s ease, background 0.15s ease;
+      }
+      #bm-template-manage-overlay .bm-template-item:hover {
+        background: #3f4b5f !important;
+        transform: translateY(-1px) translateZ(0);
+      }
+      #bm-template-manage-overlay button {
+        will-change: transform, background;
+        transition: transform 0.15s ease, background 0.15s ease;
+      }
+      #bm-template-manage-overlay button:hover {
+        transform: translateY(-1px) translateZ(0);
+      }
+      
       /* Template manager mobile styles */
       @media screen and (max-width: 500px) {
         /* Make ONLY template items stack vertically - not header */
@@ -2847,6 +3145,7 @@ function showTemplateManageDialog(instance) {
   
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '×';
+  closeBtn.className = 'bm-close-btn';
   closeBtn.style.cssText = `
     background: none;
     border: none;
@@ -2860,16 +3159,7 @@ function showTemplateManageDialog(instance) {
     align-items: center;
     justify-content: center;
     border-radius: 6px;
-    transition: all 0.2s ease;
   `;
-  closeBtn.onmouseover = () => {
-    closeBtn.style.background = 'rgba(239, 68, 68, 0.1)';
-    closeBtn.style.color = '#ef4444';
-  };
-  closeBtn.onmouseout = () => {
-    closeBtn.style.background = 'none';
-    closeBtn.style.color = '#94a3b8';
-  };
   closeBtn.onclick = () => document.body.removeChild(overlay);
   
   header.appendChild(title);
@@ -2891,14 +3181,66 @@ function showTemplateManageDialog(instance) {
     gap: 12px;
   `;
   
-  templateKeys.forEach(templateKey => {
-    const template = templates[templateKey];
+  // Add loading indicator
+  const loadingDiv = document.createElement('div');
+  loadingDiv.style.cssText = `
+    text-align: center;
+    padding: 40px;
+    color: #94a3b8;
+    font-size: 14px;
+  `;
+  loadingDiv.textContent = 'Loading templates...';
+  templateList.appendChild(loadingDiv);
+  
+  // Build basic structure first
+  content.appendChild(templateList);
+  
+  // Footer with actions that keep dialog open
+  const footer = document.createElement('div');
+  footer.style.cssText = `
+    display: flex; gap: 12px; padding: 12px 16px; border-top: 1px solid #334155;
+    background: #1b2433; position: sticky; bottom: 0; justify-content: center; align-items: center;`
+  ;
+  
+  // Assemble the interface early (before populating templates)
+  container.appendChild(header);
+  container.appendChild(content);
+  container.appendChild(footer);
+  overlay.appendChild(container);
+
+  // Close overlay when clicking outside
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      document.body.removeChild(overlay);
+    }
+  });
+  
+  // Add to page FIRST (before heavy operations)
+  document.body.appendChild(overlay);
+  
+  // Now populate templates asynchronously in batches to avoid lag
+  const batchSize = 3; // Process 3 templates at a time
+  let currentIndex = 0;
+  
+  const processBatch = () => {
+    const endIndex = Math.min(currentIndex + batchSize, templateKeys.length);
+    
+    // Clear loading indicator on first batch
+    if (currentIndex === 0) {
+      templateList.innerHTML = '';
+    }
+    
+    // Process current batch
+    for (let i = currentIndex; i < endIndex; i++) {
+      const templateKey = templateKeys[i];
+      const template = templates[templateKey];
     const templateName = template.name || `Template ${templateKey}`;
     const templateCoords = template.coords || 'Unknown location';
     const pixelCount = template.pixelCount || 0;
     const isEnabled = templateManager.isTemplateEnabled(templateKey);
     
     const templateItem = document.createElement('div');
+    templateItem.className = 'bm-template-item';
     templateItem.style.cssText = `
       display: flex;
       justify-content: space-between;
@@ -2907,16 +3249,7 @@ function showTemplateManageDialog(instance) {
       background: #334155;
       border-radius: 12px;
       border: 1px solid #475569;
-      transition: all 0.2s ease;
     `;
-    templateItem.onmouseover = () => {
-      templateItem.style.background = '#3f4b5f';
-      templateItem.style.transform = 'translateY(-1px)';
-    };
-    templateItem.onmouseout = () => {
-      templateItem.style.background = '#334155';
-      templateItem.style.transform = '';
-    };
     
     const templateInfo = document.createElement('div');
     templateInfo.style.cssText = `
@@ -3037,7 +3370,6 @@ function showTemplateManageDialog(instance) {
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      transition: all 0.2s ease;
       min-width: 36px;
       height: 36px;
       display: flex;
@@ -3046,15 +3378,6 @@ function showTemplateManageDialog(instance) {
       background: linear-gradient(135deg, #22c55e, #16a34a);
       color: white;
     `;
-    exportBtn.onmouseover = () => {
-      exportBtn.style.background = 'linear-gradient(135deg, #16a34a, #15803d)';
-      exportBtn.style.transform = 'translateY(-1px)';
-    };
-    
-    exportBtn.onmouseout = () => {
-      exportBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
-      exportBtn.style.transform = '';
-    };
 
     exportBtn.onclick = () => {
       templateManager.downloadTemplateJSON(templateKey);
@@ -3071,7 +3394,6 @@ function showTemplateManageDialog(instance) {
       cursor: pointer;
       font-size: 0.85em;
       font-weight: 600;
-      transition: all 0.2s ease;
       min-width: 80px;
       ${isEnabled 
         ? 'background: linear-gradient(135deg, #10b981, #059669); color: white;'
@@ -3115,7 +3437,6 @@ function showTemplateManageDialog(instance) {
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      transition: all 0.2s ease;
       min-width: 36px;
       height: 36px;
       display: flex;
@@ -3124,16 +3445,6 @@ function showTemplateManageDialog(instance) {
       background: linear-gradient(135deg, #3b82f6, #2563eb);
       color: white;
     `;
-    
-    flyBtn.onmouseover = () => {
-      flyBtn.style.background = 'linear-gradient(135deg, #2563eb, #1d4ed8)';
-      flyBtn.style.transform = 'translateY(-1px)';
-    };
-    
-    flyBtn.onmouseout = () => {
-      flyBtn.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
-      flyBtn.style.transform = '';
-    };
     
     flyBtn.onclick = () => {
       if (templateCoords && templateCoords !== 'Unknown location') {
@@ -3191,7 +3502,6 @@ function showTemplateManageDialog(instance) {
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      transition: all 0.2s ease;
       min-width: 36px;
       height: 36px;
       display: flex;
@@ -3200,16 +3510,6 @@ function showTemplateManageDialog(instance) {
       background: linear-gradient(135deg, #ef4444, #dc2626);
       color: white;
     `;
-    
-    deleteBtn.onmouseover = () => {
-      deleteBtn.style.background = 'linear-gradient(135deg, #dc2626, #b91c1c)';
-      deleteBtn.style.transform = 'translateY(-1px)';
-    };
-    
-    deleteBtn.onmouseout = () => {
-      deleteBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
-      deleteBtn.style.transform = '';
-    };
     
     deleteBtn.onclick = (e) => {
       e.stopPropagation();
@@ -3258,71 +3558,51 @@ function showTemplateManageDialog(instance) {
     templateItem.appendChild(templateInfo);
     templateItem.appendChild(buttonContainer);
     templateList.appendChild(templateItem);
-  });
-  
-    content.appendChild(templateList);
-  
-  // Footer with actions that keep dialog open
-  const footer = document.createElement('div');
-  footer.style.cssText = `
-    display: flex; gap: 12px; padding: 12px 16px; border-top: 1px solid #334155;
-    background: #1b2433; position: sticky; bottom: 0; justify-content: center; align-items: center;`
-  ;
-  const enableAllBtn = document.createElement('button');
-  enableAllBtn.textContent = 'Enable All';
-  enableAllBtn.style.cssText = `padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; background: linear-gradient(135deg,#10b981,#059669); color: white;`;
-  enableAllBtn.onclick = () => {
-    Object.keys(templates).forEach(k => templateManager.setTemplateEnabled(k, true));
-    
-    // Invalidate cache after enabling all templates
-    invalidateTemplateCache();
-    
-    instance.handleDisplayStatus('Enabled all templates');
-    // Update visible buttons text/colors
-    content.querySelectorAll('button').forEach(btn => {
-      if (btn.textContent === 'Disabled' || btn.textContent === 'Enabled') {
-        btn.textContent = 'Enabled';
-        btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-        btn.style.color = 'white';
-      }
-    });
-  };
-  const disableAllBtn = document.createElement('button');
-  disableAllBtn.textContent = 'Disable All';
-  disableAllBtn.style.cssText = `padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; background: linear-gradient(135deg,#64748b,#475569); color: #e2e8f0;`;
-  disableAllBtn.onclick = () => {
-    Object.keys(templates).forEach(k => templateManager.setTemplateEnabled(k, false));
-    
-    // Invalidate cache after disabling all templates
-    invalidateTemplateCache();
-    
-    instance.handleDisplayStatus('Disabled all templates');
-    content.querySelectorAll('button').forEach(btn => {
-      if (btn.textContent === 'Disabled' || btn.textContent === 'Enabled') {
-        btn.textContent = 'Disabled';
-        btn.style.background = 'linear-gradient(135deg, #64748b, #475569)';
-        btn.style.color = '#e2e8f0';
-      }
-    });
-  };
-  footer.appendChild(enableAllBtn);
-  footer.appendChild(disableAllBtn);
-  
-  // Assemble the interface
-  container.appendChild(header);
-  container.appendChild(content);
-  container.appendChild(footer);
-  overlay.appendChild(container);
-
-  // Close overlay when clicking outside
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      document.body.removeChild(overlay);
     }
-  });
+    
+    // Move to next batch or finish
+    currentIndex = endIndex;
+    if (currentIndex < templateKeys.length) {
+      requestAnimationFrame(processBatch);
+    } else {
+      // All templates loaded, add footer buttons
+      const enableAllBtn = document.createElement('button');
+      enableAllBtn.textContent = 'Enable All';
+      enableAllBtn.style.cssText = `padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; background: linear-gradient(135deg,#10b981,#059669); color: white;`;
+      enableAllBtn.onclick = () => {
+        Object.keys(templates).forEach(k => templateManager.setTemplateEnabled(k, true));
+        invalidateTemplateCache();
+        instance.handleDisplayStatus('Enabled all templates');
+        content.querySelectorAll('button').forEach(btn => {
+          if (btn.textContent === 'Disabled' || btn.textContent === 'Enabled') {
+            btn.textContent = 'Enabled';
+            btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+            btn.style.color = 'white';
+          }
+        });
+      };
+      const disableAllBtn = document.createElement('button');
+      disableAllBtn.textContent = 'Disable All';
+      disableAllBtn.style.cssText = `padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; background: linear-gradient(135deg,#64748b,#475569); color: #e2e8f0;`;
+      disableAllBtn.onclick = () => {
+        Object.keys(templates).forEach(k => templateManager.setTemplateEnabled(k, false));
+        invalidateTemplateCache();
+        instance.handleDisplayStatus('Disabled all templates');
+        content.querySelectorAll('button').forEach(btn => {
+          if (btn.textContent === 'Disabled' || btn.textContent === 'Enabled') {
+            btn.textContent = 'Disabled';
+            btn.style.background = 'linear-gradient(135deg, #64748b, #475569)';
+            btn.style.color = '#e2e8f0';
+          }
+        });
+      };
+      footer.appendChild(enableAllBtn);
+      footer.appendChild(disableAllBtn);
+    }
+  };
   
-  // Add to page
-  document.body.appendChild(overlay);
+  // Start processing first batch
+  requestAnimationFrame(processBatch);
 }
 
 /** Deploys the overlay to the page with minimize/maximize functionality.
