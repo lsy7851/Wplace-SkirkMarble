@@ -2676,7 +2676,7 @@ function showWrongPixelsDialog(instance) {
     border: 1px solid #334155;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(16px);
-    max-width: 600px;
+    max-width: 390px;
     width: 90%;
     max-height: 85vh;
     overflow: hidden;
@@ -2691,7 +2691,7 @@ function showWrongPixelsDialog(instance) {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 24px 16px 24px;
+    padding: 14px 16px 12px 16px;
     border-bottom: 1px solid #334155;
     background: linear-gradient(135deg, #1e293b, #293548);
   `;
@@ -2700,7 +2700,7 @@ function showWrongPixelsDialog(instance) {
   title.textContent = `Wrong Pixels (${wrongPixelsList.length} locations)`;
   title.style.cssText = `
     margin: 0;
-    font-size: 1.5em;
+    font-size: 1.2em;
     font-weight: 700;
     background: linear-gradient(135deg, #f87171, #ef4444);
     -webkit-background-clip: text;
@@ -2715,11 +2715,11 @@ function showWrongPixelsDialog(instance) {
     background: none;
     border: none;
     color: #94a3b8;
-    font-size: 24px;
+    font-size: 20px;
     cursor: pointer;
     padding: 0;
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2732,7 +2732,7 @@ function showWrongPixelsDialog(instance) {
   
   const content = document.createElement('div');
   content.style.cssText = `
-    padding: 20px 24px;
+    padding: 14px 16px;
     overflow-y: auto;
     flex: 1;
   `;
@@ -2741,7 +2741,7 @@ function showWrongPixelsDialog(instance) {
   pixelsList.style.cssText = `
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
   `;
   
   const loadingDiv = document.createElement('div');
@@ -2776,20 +2776,20 @@ function showWrongPixelsDialog(instance) {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 16px;
+        padding: 8px 10px;
         background: #334155;
-        border-radius: 10px;
+        border-radius: 6px;
         border: 1px solid #475569;
-        gap: 12px;
+        gap: 8px;
       `;
       
       // Color swatch
       const [r, g, b] = wrongPixel.colorKey.split(',').map(Number);
       const swatch = document.createElement('div');
       swatch.style.cssText = `
-        width: 20px;
-        height: 20px;
-        border-radius: 4px;
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
         background: rgb(${r}, ${g}, ${b});
         border: 1px solid rgba(255, 255, 255, 0.3);
         flex-shrink: 0;
@@ -2799,10 +2799,10 @@ function showWrongPixelsDialog(instance) {
       const info = document.createElement('div');
       info.style.cssText = 'flex: 1; min-width: 0;';
       info.innerHTML = `
-        <div style="font-weight: 600; color: #f1f5f9; margin-bottom: 4px;">
+        <div style="font-weight: 600; color: #f1f5f9; margin-bottom: -5px; font-size: 0.9em;">
           Tile ${wrongPixel.tileX}, ${wrongPixel.tileY}
         </div>
-        <div style="font-size: 0.85em; color: #94a3b8;">
+        <div style="font-size: 0.8em; color: #94a3b8;">
           ${wrongPixel.wrongCount} wrong pixel${wrongPixel.wrongCount > 1 ? 's' : ''} • RGB(${r}, ${g}, ${b})
         </div>
       `;
@@ -2812,12 +2812,12 @@ function showWrongPixelsDialog(instance) {
       flyBtn.innerHTML = icons.pinIcon;
       flyBtn.title = 'Fly to this tile';
       flyBtn.style.cssText = `
-        padding: 8px;
+        padding: 6px;
         border: none;
-        border-radius: 8px;
+        border-radius: 6px;
         cursor: pointer;
-        min-width: 36px;
-        height: 36px;
+        min-width: 32px;
+        height: 32px;
         display: flex;
         align-items: center;
         justify-content: center;
