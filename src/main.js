@@ -8565,7 +8565,7 @@ function getCrosshairRadius() {
     
     if (radiusValue !== null) {
       // Ensure value is within valid range
-      return Math.max(12, Math.min(32, radiusValue));
+      return Math.max(12, Math.min(512, radiusValue));
     }
   } catch (error) {
     console.error('Failed to load crosshair radius setting:', error);
@@ -8581,7 +8581,7 @@ function getCrosshairRadius() {
 function saveCrosshairRadius(radius) {
   try {
     // Ensure value is within valid range
-    const clampedRadius = Math.max(12, Math.min(32, radius));
+    const clampedRadius = Math.max(12, Math.min(512, radius));
     const radiusString = JSON.stringify(clampedRadius);
     
     // Save to TamperMonkey storage
@@ -10989,7 +10989,7 @@ function buildCrosshairSettingsOverlay() {
   const radiusSlider = document.createElement('input');
   radiusSlider.type = 'range';
   radiusSlider.min = '12';
-  radiusSlider.max = '32';
+  radiusSlider.max = '512';
   radiusSlider.step = '1';
   radiusSlider.value = tempRadius;
   radiusSlider.style.cssText = `

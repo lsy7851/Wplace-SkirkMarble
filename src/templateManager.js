@@ -2267,7 +2267,7 @@ export default class TemplateManager {
        
        if (radiusValue !== null) {
          // Ensure value is within valid range
-         return Math.max(12, Math.min(32, radiusValue));
+         return Math.max(12, Math.min(512, radiusValue));
        }
      } catch (error) {
        console.warn('Failed to load crosshair radius:', error);
