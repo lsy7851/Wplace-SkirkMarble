@@ -2627,7 +2627,7 @@ function showWrongPixelsDialog(instance) {
   for (const [tileCoords, tileData] of templateManager.tileProgress.entries()) {
     if (tileData.wrong > 0 && tileData.colorBreakdown) {
       const [tileX, tileY] = tileCoords.split(',').map(Number);
-      
+
       for (const [colorKey, colorStats] of Object.entries(tileData.colorBreakdown)) {
         if (colorStats.wrong > 0 && colorStats.firstWrongPixel) {
           wrongPixelsList.push({
@@ -2766,7 +2766,10 @@ function showWrongPixelsDialog(instance) {
   });
   
   document.body.appendChild(overlay);
-  
+
+  import('./utils.js').then(utils => {
+    const colorPalette = utils.colorpalette;
+
   requestAnimationFrame(() => {
     pixelsList.innerHTML = '';
     
@@ -2782,7 +2785,7 @@ function showWrongPixelsDialog(instance) {
         border: 1px solid #475569;
         gap: 8px;
       `;
-      
+
       // Color swatch
       const [r, g, b] = wrongPixel.colorKey.split(',').map(Number);
       const swatch = document.createElement('div');
@@ -2794,7 +2797,14 @@ function showWrongPixelsDialog(instance) {
         border: 1px solid rgba(255, 255, 255, 0.3);
         flex-shrink: 0;
       `;
-      
+
+      let colorName = 'Unknown';
+      for (const colorInfo of colorPalette) {
+        if (colorInfo.rgb[0] === r && colorInfo.rgb[1] === g && colorInfo.rgb[2] === b) {
+          colorName = colorInfo.name;
+        }
+      }
+
       // Info section
       const info = document.createElement('div');
       info.style.cssText = 'flex: 1; min-width: 0;';
@@ -2803,7 +2813,7 @@ function showWrongPixelsDialog(instance) {
           Tile ${wrongPixel.tileX}, ${wrongPixel.tileY}
         </div>
         <div style="font-size: 0.8em; color: #94a3b8;">
-          ${wrongPixel.wrongCount} wrong pixel${wrongPixel.wrongCount > 1 ? 's' : ''} • RGB(${r}, ${g}, ${b})
+          ${wrongPixel.wrongCount} wrong pixel${wrongPixel.wrongCount > 1 ? 's' : ''} • RGB(${r}, ${g}, ${b}) • ${colorName}
         </div>
       `;
       
@@ -2866,6 +2876,9 @@ function showWrongPixelsDialog(instance) {
       pixelItem.appendChild(flyBtn);
       pixelsList.appendChild(pixelItem);
     });
+  });
+
+
   });
 }
 
